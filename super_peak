@@ -1,0 +1,821 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local LP = Players.LocalPlayer
+local PG = LP:WaitForChild("PlayerGui")
+
+local GUI_NAME = "SUPER_PEAK_V367"
+local EFFECT_NAME = "SUPER_PEAK_EFFECTS_V367"
+
+local WHITE = Color3.fromRGB(255,255,255)
+
+local CORE_SIZE = 2.5
+local BEAM_WIDTH = 0.12
+local CORE_DISTANCE = 2
+
+local Enabled = true
+local Effects = {}
+local CharacterConnections = {}
+
+local CorePart = nil
+local CoreAttachment = nil
+
+local CharacterTransparency = 0
+
+pcall(function()
+	local OldGUI = PG:FindFirstChild(GUI_NAME)
+
+	if OldGUI then
+		OldGUI:Destroy()
+	end
+end)
+
+pcall(function()
+	local OldEffects = workspace:FindFirstChild(EFFECT_NAME)
+
+	if OldEffects then
+		OldEffects:Destroy()
+	end
+end)
+
+local EffectFolder = Instance.new("Folder")
+EffectFolder.Name = EFFECT_NAME
+EffectFolder.Parent = workspace
+
+local function MakeParticle(Parent, Texture, Rate, Lifetime, Speed, Size)
+	local P = Instance.new("ParticleEmitter")
+
+	P.Texture = Texture
+	P.Rate = Rate
+	P.Lifetime = Lifetime
+	P.Speed = Speed
+	P.Size = Size
+	P.Color = ColorSequence.new(WHITE)
+	P.LightEmission = 1
+	P.LightInfluence = 0
+
+	P.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0,0),
+		NumberSequenceKeypoint.new(0.7,0.15),
+		NumberSequenceKeypoint.new(1,1)
+	})
+
+	P.Parent = Parent
+
+	return P
+end
+
+local function CreateCore(Character)
+	local Root = Character:FindFirstChild("HumanoidRootPart")
+
+	if not Root then
+		return
+	end
+
+	if CorePart then
+		CorePart:Destroy()
+		CorePart = nil
+		CoreAttachment = nil
+	end
+
+	local Core = Instance.new("Part")
+
+	Core.Name = "WhiteNeonCore"
+	Core.Shape = Enum.PartType.Ball
+	Core.Size = Vector3.new(CORE_SIZE,CORE_SIZE,CORE_SIZE)
+	Core.Material = Enum.Material.Neon
+	Core.Color = WHITE
+	Core.Anchored = true
+	Core.CanCollide = false
+	Core.CanTouch = false
+	Core.CanQuery = true
+	Core.CastShadow = true
+
+	Core.Parent = EffectFolder
+
+	CorePart = Core
+
+	local Attachment = Instance.new("Attachment")
+
+	Attachment.Name = "WhiteCoreAttachment"
+	Attachment.Parent = Core
+
+	CoreAttachment = Attachment
+
+	local Light = Instance.new("PointLight")
+
+	Light.Color = WHITE
+	Light.Brightness = 5
+	Light.Range = 18
+	Light.Shadows = true
+	Light.Enabled = Enabled
+
+	Light.Parent = Core
+
+	MakeParticle(
+		Core,
+		"rbxasset://textures/particles/sparkles_main.dds",
+		35,
+		NumberRange.new(0.7,1.3),
+		NumberRange.new(0.5,1.5),
+		NumberSequence.new({
+			NumberSequenceKeypoint.new(0,0.25),
+			NumberSequenceKeypoint.new(0.5,0.12),
+			NumberSequenceKeypoint.new(1,0)
+		})
+	)
+end
+
+local function SetCharacterTransparency(Value)
+	CharacterTransparency = math.clamp(Value,0,1)
+
+	local Character = LP.Character
+
+	if not Character then
+		return
+	end
+
+	for _,Object in ipairs(Character:GetDescendants()) do
+		if Object:IsA("BasePart") then
+			if Object.Name ~= "HumanoidRootPart" then
+				Object.LocalTransparencyModifier = CharacterTransparency
+			end
+		elseif Object:IsA("Decal") or Object:IsA("Texture") then
+			Object.Transparency = CharacterTransparency
+		end
+	end
+end
+
+local function CleanupPlayerEffects(Player)
+	if Effects[Player] then
+		for _,Object in ipairs(Effects[Player]) do
+			pcall(function()
+				if typeof(Object) == "RBXScriptConnection" then
+					Object:Disconnect()
+				elseif Object and Object.Destroy then
+					Object:Destroy()
+				end
+			end)
+		end
+
+		Effects[Player] = nil
+	end
+end
+
+local function CreateESP(Player, Character)
+	if Player == LP then
+		return
+	end
+
+	if not Enabled then
+		return
+	end
+
+	local Root = Character:FindFirstChild("HumanoidRootPart")
+	local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+
+	if not Root or not Humanoid then
+		return
+	end
+
+	CleanupPlayerEffects(Player)
+
+	Effects[Player] = {}
+
+	local Highlight = Instance.new("Highlight")
+
+	Highlight.Name = "WhiteNeonESP"
+	Highlight.Adornee = Character
+	Highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	Highlight.FillColor = WHITE
+	Highlight.OutlineColor = WHITE
+	Highlight.FillTransparency = 0.92
+	Highlight.OutlineTransparency = 0
+	Highlight.Enabled = Enabled
+	Highlight.Parent = Character
+
+	table.insert(Effects[Player],Highlight)
+
+	local Billboard = Instance.new("BillboardGui")
+
+	Billboard.Name = "WhiteNeonInfo"
+	Billboard.Adornee = Root
+	Billboard.Size = UDim2.fromOffset(250,70)
+	Billboard.StudsOffset = Vector3.new(0,4.2,0)
+	Billboard.AlwaysOnTop = true
+	Billboard.MaxDistance = math.huge
+	Billboard.LightInfluence = 0
+	Billboard.ResetOnSpawn = false
+	Billboard.Enabled = Enabled
+	Billboard.Parent = Root
+
+	table.insert(Effects[Player],Billboard)
+
+	local Text = Instance.new("TextLabel")
+
+	Text.Name = "Info"
+	Text.Size = UDim2.fromScale(1,1)
+	Text.BackgroundTransparency = 1
+	Text.TextColor3 = WHITE
+	Text.TextStrokeColor3 = Color3.fromRGB(0,0,0)
+	Text.TextStrokeTransparency = 0
+	Text.Font = Enum.Font.GothamBold
+	Text.TextSize = 12
+	Text.TextWrapped = true
+	Text.Parent = Billboard
+
+	table.insert(Effects[Player],Text)
+
+	local StarsAttachment = Instance.new("Attachment")
+
+	StarsAttachment.Name = "WhiteStars"
+	StarsAttachment.Parent = Root
+
+	table.insert(Effects[Player],StarsAttachment)
+
+	local Stars = MakeParticle(
+		StarsAttachment,
+		"rbxasset://textures/particles/sparkles_main.dds",
+		22,
+		NumberRange.new(0.8,1.5),
+		NumberRange.new(0.3,1),
+		NumberSequence.new({
+			NumberSequenceKeypoint.new(0,0.18),
+			NumberSequenceKeypoint.new(0.5,0.1),
+			NumberSequenceKeypoint.new(1,0)
+		})
+	)
+
+	Stars.Enabled = Enabled
+
+	table.insert(Effects[Player],Stars)
+
+	local Nebula = MakeParticle(
+		StarsAttachment,
+		"rbxasset://textures/particles/smoke_main.dds",
+		8,
+		NumberRange.new(1,2),
+		NumberRange.new(0.2,0.7),
+		NumberSequence.new({
+			NumberSequenceKeypoint.new(0,0.55),
+			NumberSequenceKeypoint.new(0.5,0.75),
+			NumberSequenceKeypoint.new(1,1)
+		})
+	)
+
+	Nebula.Enabled = Enabled
+
+	table.insert(Effects[Player],Nebula)
+
+	local Rays = MakeParticle(
+		StarsAttachment,
+		"rbxasset://textures/particles/rays_main.dds",
+		6,
+		NumberRange.new(0.7,1.4),
+		NumberRange.new(0.2,0.8),
+		NumberSequence.new({
+			NumberSequenceKeypoint.new(0,0.25),
+			NumberSequenceKeypoint.new(0.6,0.45),
+			NumberSequenceKeypoint.new(1,1)
+		})
+	)
+
+	Rays.Enabled = Enabled
+
+	table.insert(Effects[Player],Rays)
+
+	local Light = Instance.new("PointLight")
+
+	Light.Name = "WhiteESPGlow"
+	Light.Color = WHITE
+	Light.Brightness = 36.67
+	Light.Range = 3.67
+	Light.Shadows = false
+	Light.Enabled = Enabled
+	Light.Parent = Root
+
+	table.insert(Effects[Player],Light)
+
+	local Connection
+
+	Connection = RunService.RenderStepped:Connect(function()
+		if not Character.Parent or not Root.Parent or not Humanoid.Parent then
+			if Connection then
+				Connection:Disconnect()
+			end
+
+			return
+		end
+
+		if not Enabled then
+			return
+		end
+
+		local HP = math.floor(Humanoid.Health)
+		local MaxHP = math.floor(Humanoid.MaxHealth)
+
+		local Distance = 0
+
+		if LP.Character then
+			local MyRoot = LP.Character:FindFirstChild("HumanoidRootPart")
+
+			if MyRoot then
+				Distance = math.floor((MyRoot.Position - Root.Position).Magnitude)
+			end
+		end
+
+		Text.Text =
+			Player.DisplayName ..
+			"\n@" ..
+			Player.Name ..
+			"\nHP: " ..
+			HP ..
+			" / " ..
+			MaxHP ..
+			"    DIST: " ..
+			Distance ..
+			"m"
+	end)
+
+	table.insert(Effects[Player],Connection)
+end
+
+local function CreateBeam(Player, Character)
+	if Player == LP then
+		return
+	end
+
+	if not Enabled then
+		return
+	end
+
+	local Root = Character:FindFirstChild("HumanoidRootPart")
+
+	if not Root or not CoreAttachment then
+		return
+	end
+
+	local EndAttachment = Instance.new("Attachment")
+
+	EndAttachment.Name = "WhiteBeamEnd"
+	EndAttachment.Parent = Root
+
+	local Beam = Instance.new("Beam")
+
+	Beam.Name = "WhiteNeonBeam"
+	Beam.Attachment0 = CoreAttachment
+	Beam.Attachment1 = EndAttachment
+	Beam.FaceCamera = true
+	Beam.Color = ColorSequence.new(WHITE)
+	Beam.LightEmission = 1
+	Beam.LightInfluence = 0
+	Beam.Width0 = BEAM_WIDTH
+	Beam.Width1 = BEAM_WIDTH
+	Beam.Segments = 20
+	Beam.Transparency = NumberSequence.new(0)
+	Beam.Enabled = Enabled
+	Beam.Parent = EffectFolder
+
+	if not Effects[Player] then
+		Effects[Player] = {}
+	end
+
+	table.insert(Effects[Player],EndAttachment)
+	table.insert(Effects[Player],Beam)
+end
+
+local function SetupPlayer(Player)
+	if Player == LP then
+		return
+	end
+
+	if CharacterConnections[Player] then
+		CharacterConnections[Player]:Disconnect()
+		CharacterConnections[Player] = nil
+	end
+
+	local function CharacterSetup(Character)
+		task.wait(0.5)
+
+		if not Character.Parent then
+			return
+		end
+
+		if not Enabled then
+			CleanupPlayerEffects(Player)
+			return
+		end
+
+		CreateESP(Player,Character)
+
+		task.wait(0.1)
+
+		if Enabled and CoreAttachment then
+			CreateBeam(Player,Character)
+		end
+	end
+
+	if Player.Character and Enabled then
+		task.spawn(function()
+			CharacterSetup(Player.Character)
+		end)
+	end
+
+	CharacterConnections[Player] = Player.CharacterAdded:Connect(function(Character)
+		CharacterSetup(Character)
+	end)
+end
+
+local function CreateAllCurrentESP()
+	if not Enabled then
+		return
+	end
+
+	for _,Player in ipairs(Players:GetPlayers()) do
+		if Player ~= LP and Player.Character then
+			task.spawn(function()
+				CreateESP(Player,Player.Character)
+
+				task.wait(0.1)
+
+				if Enabled and CoreAttachment and Player.Character then
+					CreateBeam(Player,Player.Character)
+				end
+			end)
+		end
+	end
+end
+
+local function SetEverythingEnabled(State)
+	Enabled = State
+
+	if not State then
+		for _,Player in ipairs(Players:GetPlayers()) do
+			if Player ~= LP then
+				CleanupPlayerEffects(Player)
+			end
+		end
+
+		if CorePart then
+			CorePart.Transparency = 1
+
+			for _,Object in ipairs(CorePart:GetChildren()) do
+				if Object:IsA("ParticleEmitter") or Object:IsA("PointLight") then
+					Object.Enabled = false
+				end
+			end
+		end
+
+		return
+	end
+
+	if CorePart then
+		CorePart.Transparency = 0
+
+		for _,Object in ipairs(CorePart:GetChildren()) do
+			if Object:IsA("ParticleEmitter") or Object:IsA("PointLight") then
+				Object.Enabled = true
+			end
+		end
+	end
+
+	CreateAllCurrentESP()
+end
+
+RunService.RenderStepped:Connect(function()
+	local Character = LP.Character
+	local Root = Character and Character:FindFirstChild("HumanoidRootPart")
+
+	if not Root then
+		return
+	end
+
+	if CorePart then
+		CorePart.CFrame = Root.CFrame * CFrame.new(0,0,CORE_DISTANCE)
+	end
+end)
+
+for _,Player in ipairs(Players:GetPlayers()) do
+	SetupPlayer(Player)
+end
+
+Players.PlayerAdded:Connect(function(Player)
+	SetupPlayer(Player)
+end)
+
+Players.PlayerRemoving:Connect(function(Player)
+	CleanupPlayerEffects(Player)
+
+	if CharacterConnections[Player] then
+		CharacterConnections[Player]:Disconnect()
+		CharacterConnections[Player] = nil
+	end
+end)
+
+if LP.Character then
+	task.spawn(function()
+		task.wait(0.5)
+		CreateCore(LP.Character)
+	end)
+end
+
+LP.CharacterAdded:Connect(function(Character)
+	task.wait(0.5)
+	CreateCore(Character)
+	task.wait(0.2)
+	SetCharacterTransparency(CharacterTransparency)
+end)
+
+local GUI = Instance.new("ScreenGui")
+
+GUI.Name = GUI_NAME
+GUI.ResetOnSpawn = false
+GUI.IgnoreGuiInset = true
+GUI.DisplayOrder = 999999
+GUI.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+GUI.Parent = PG
+
+local Panel = Instance.new("Frame")
+
+Panel.Name = "GlassMenu"
+Panel.Size = UDim2.fromOffset(145,82)
+Panel.Position = UDim2.new(1,-155,0,45)
+Panel.BackgroundColor3 = Color3.fromRGB(255,255,255)
+Panel.BackgroundTransparency = 0.88
+Panel.BorderSizePixel = 0
+Panel.Active = true
+Panel.Parent = GUI
+
+local PanelCorner = Instance.new("UICorner")
+
+PanelCorner.CornerRadius = UDim.new(0,10)
+PanelCorner.Parent = Panel
+
+local PanelStroke = Instance.new("UIStroke")
+
+PanelStroke.Color = WHITE
+PanelStroke.Thickness = 2
+PanelStroke.Transparency = 0
+PanelStroke.Parent = Panel
+
+local DragArea = Instance.new("Frame")
+
+DragArea.Name = "DragArea"
+DragArea.Size = UDim2.new(1,0,0,32)
+DragArea.Position = UDim2.fromOffset(0,0)
+DragArea.BackgroundTransparency = 1
+DragArea.Active = true
+DragArea.ZIndex = 20
+DragArea.Parent = Panel
+
+local Title = Instance.new("TextLabel")
+
+Title.Name = "Title"
+Title.Size = UDim2.new(1,-10,0,25)
+Title.Position = UDim2.fromOffset(5,2)
+Title.BackgroundTransparency = 1
+Title.Text = "super_peak 367"
+Title.TextColor3 = WHITE
+Title.TextStrokeColor3 = Color3.fromRGB(0,0,0)
+Title.TextStrokeTransparency = 0.35
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 10
+Title.ZIndex = 21
+Title.Parent = Panel
+
+local ESPLabel = Instance.new("TextLabel")
+
+ESPLabel.Name = "ESPLabel"
+ESPLabel.Size = UDim2.fromOffset(45,25)
+ESPLabel.Position = UDim2.fromOffset(10,39)
+ESPLabel.BackgroundTransparency = 1
+ESPLabel.Text = "ESP"
+ESPLabel.TextColor3 = WHITE
+ESPLabel.TextStrokeColor3 = Color3.fromRGB(0,0,0)
+ESPLabel.TextStrokeTransparency = 0.35
+ESPLabel.Font = Enum.Font.GothamBold
+ESPLabel.TextSize = 10
+ESPLabel.TextXAlignment = Enum.TextXAlignment.Left
+ESPLabel.ZIndex = 21
+ESPLabel.Parent = Panel
+
+local ToggleBack = Instance.new("Frame")
+
+ToggleBack.Name = "ToggleBack"
+ToggleBack.Size = UDim2.fromOffset(32,16)
+ToggleBack.Position = UDim2.new(1,-43,0,42)
+ToggleBack.BackgroundColor3 = WHITE
+ToggleBack.BackgroundTransparency = 0.78
+ToggleBack.BorderSizePixel = 0
+ToggleBack.Active = true
+ToggleBack.ZIndex = 22
+ToggleBack.Parent = Panel
+
+local ToggleCorner = Instance.new("UICorner")
+
+ToggleCorner.CornerRadius = UDim.new(0,5)
+ToggleCorner.Parent = ToggleBack
+
+local ToggleStroke = Instance.new("UIStroke")
+
+ToggleStroke.Color = WHITE
+ToggleStroke.Thickness = 1.3
+ToggleStroke.Parent = ToggleBack
+
+local ToggleButton = Instance.new("TextButton")
+
+ToggleButton.Name = "ToggleButton"
+ToggleButton.Size = UDim2.fromOffset(12,12)
+ToggleButton.Position = UDim2.new(1,-14,0,2)
+ToggleButton.BackgroundColor3 = WHITE
+ToggleButton.BackgroundTransparency = 0
+ToggleButton.BorderSizePixel = 0
+ToggleButton.Text = ""
+ToggleButton.AutoButtonColor = false
+ToggleButton.Active = true
+ToggleButton.ZIndex = 23
+ToggleButton.Parent = ToggleBack
+
+local ToggleButtonCorner = Instance.new("UICorner")
+
+ToggleButtonCorner.CornerRadius = UDim.new(0,4)
+ToggleButtonCorner.Parent = ToggleButton
+
+local InvisLabel = Instance.new("TextLabel")
+
+InvisLabel.Name = "InvisLabel"
+InvisLabel.Size = UDim2.fromOffset(40,20)
+InvisLabel.Position = UDim2.fromOffset(10,59)
+InvisLabel.BackgroundTransparency = 1
+InvisLabel.Text = "0%"
+InvisLabel.TextColor3 = WHITE
+InvisLabel.TextStrokeColor3 = Color3.fromRGB(0,0,0)
+InvisLabel.TextStrokeTransparency = 0.35
+InvisLabel.Font = Enum.Font.GothamBold
+InvisLabel.TextSize = 8
+InvisLabel.TextXAlignment = Enum.TextXAlignment.Left
+InvisLabel.ZIndex = 21
+InvisLabel.Parent = Panel
+
+local SliderBack = Instance.new("Frame")
+
+SliderBack.Name = "InvisibilitySlider"
+SliderBack.Size = UDim2.fromOffset(70,6)
+SliderBack.Position = UDim2.new(1,-82,0,66)
+SliderBack.BackgroundColor3 = WHITE
+SliderBack.BackgroundTransparency = 0.72
+SliderBack.BorderSizePixel = 0
+SliderBack.Active = true
+SliderBack.ZIndex = 21
+SliderBack.Parent = Panel
+
+local SliderCorner = Instance.new("UICorner")
+
+SliderCorner.CornerRadius = UDim.new(0,3)
+SliderCorner.Parent = SliderBack
+
+local SliderStroke = Instance.new("UIStroke")
+
+SliderStroke.Color = WHITE
+SliderStroke.Thickness = 1
+SliderStroke.Parent = SliderBack
+
+local SliderKnob = Instance.new("TextButton")
+
+SliderKnob.Name = "SliderKnob"
+SliderKnob.Size = UDim2.fromOffset(10,10)
+SliderKnob.Position = UDim2.new(0,0,0.5,-5)
+SliderKnob.BackgroundColor3 = WHITE
+SliderKnob.BackgroundTransparency = 0
+SliderKnob.BorderSizePixel = 0
+SliderKnob.Text = ""
+SliderKnob.AutoButtonColor = false
+SliderKnob.Active = true
+SliderKnob.ZIndex = 22
+SliderKnob.Parent = SliderBack
+
+local SliderKnobCorner = Instance.new("UICorner")
+
+SliderKnobCorner.CornerRadius = UDim.new(0,3)
+SliderKnobCorner.Parent = SliderKnob
+
+local ToggleState = true
+
+local function UpdateToggleVisual()
+	if ToggleState then
+		ToggleButton.Position = UDim2.new(1,-14,0,2)
+	else
+		ToggleButton.Position = UDim2.fromOffset(2,2)
+	end
+end
+
+ToggleButton.InputBegan:Connect(function(Input)
+	if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
+		ToggleState = not ToggleState
+
+		UpdateToggleVisual()
+		SetEverythingEnabled(ToggleState)
+	end
+end)
+
+ToggleBack.InputBegan:Connect(function(Input)
+	if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
+		ToggleState = not ToggleState
+
+		UpdateToggleVisual()
+		SetEverythingEnabled(ToggleState)
+	end
+end)
+
+local SliderDragging = false
+
+local function UpdateInvisibility(InputX)
+	local StartX = SliderBack.AbsolutePosition.X
+	local Width = SliderBack.AbsoluteSize.X
+
+	local Percent = math.clamp((InputX - StartX) / Width,0,1)
+
+	SliderKnob.Position = UDim2.new(Percent,-5,0.5,-5)
+
+	local Value = math.floor(Percent * 100 + 0.5)
+
+	InvisLabel.Text = tostring(Value) .. "%"
+
+	SetCharacterTransparency(Percent)
+end
+
+SliderKnob.InputBegan:Connect(function(Input)
+	if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
+		SliderDragging = true
+	end
+end)
+
+SliderBack.InputBegan:Connect(function(Input)
+	if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
+		SliderDragging = true
+		UpdateInvisibility(Input.Position.X)
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(Input)
+	if not SliderDragging then
+		return
+	end
+
+	if Input.UserInputType == Enum.UserInputType.MouseMovement or Input.UserInputType == Enum.UserInputType.Touch then
+		UpdateInvisibility(Input.Position.X)
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(Input)
+	if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
+		SliderDragging = false
+	end
+end)
+
+local Dragging = false
+local DragInput = nil
+local DragStart = nil
+local StartPosition = nil
+
+local function UpdateDrag(Input)
+	local Delta = Input.Position - DragStart
+
+	Panel.Position = UDim2.new(
+		StartPosition.X.Scale,
+		StartPosition.X.Offset + Delta.X,
+		StartPosition.Y.Scale,
+		StartPosition.Y.Offset + Delta.Y
+	)
+end
+
+DragArea.InputBegan:Connect(function(Input)
+	if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
+		Dragging = true
+		DragStart = Input.Position
+		StartPosition = Panel.Position
+
+		Input.Changed:Connect(function()
+			if Input.UserInputState == Enum.UserInputState.End then
+				Dragging = false
+			end
+		end)
+	end
+end)
+
+DragArea.InputChanged:Connect(function(Input)
+	if Input.UserInputType == Enum.UserInputType.MouseMovement or Input.UserInputType == Enum.UserInputType.Touch then
+		DragInput = Input
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(Input)
+	if Input == DragInput and Dragging then
+		UpdateDrag(Input)
+	end
+end)
+
+UpdateToggleVisual()
+SetCharacterTransparency(0)
+SetEverythingEnabled(true)
