@@ -532,7 +532,7 @@ local GUI = Instance.new("ScreenGui")
 GUI.Name = GUI_NAME
 GUI.ResetOnSpawn = false
 GUI.IgnoreGuiInset = true
-GUI.DisplayOrder = 999999
+GUI.DisplayOrder = 999999999
 GUI.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 GUI.Parent = PG
 
